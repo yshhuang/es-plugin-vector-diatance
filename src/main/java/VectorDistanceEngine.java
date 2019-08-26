@@ -32,19 +32,16 @@ public class VectorDistanceEngine implements ScriptEngine {
         if (context.equals(ScoreScript.CONTEXT) == false) {
             throw new IllegalArgumentException(getType() + " scripts cannot be used for context [" + context.name + "]");
         }
+        // we use the script "source" as the script identifier
         if (!VectorDistanceConfig.SCRIPT_SOURCE.equals(scriptSource)) {
             throw new IllegalArgumentException("Unknown script name " + scriptSource);
         }
-        // we use the script "source" as the script identifier
 
         ScoreScript.Factory factory = (p,lookup) -> new ScoreScript.LeafFactory() {
             // The field to compare against
             final String field;
-            //Whether this search should be cosine or dot product
-            final Boolean cosine;
             //The query embedded vector
             final Object vector;
-            Boolean exclude;
             //The final comma delimited vector representation of the query vector
             double[] inputVector;
 
@@ -52,14 +49,8 @@ public class VectorDistanceEngine implements ScriptEngine {
                 if (p.containsKey("field") == false) {
                     throw new IllegalArgumentException("Missing parameter [field]");
                 }
-
-                //Determine if cosine
-                final Object cosineBool = p.get("cosine");
-                cosine = cosineBool != null ? (boolean) cosineBool : true;
                 //Get the field value from the query
                 field = p.get("field").toString();
-                final Object excludeBool = p.get("exclude");
-                exclude = excludeBool != null ? (boolean) cosineBool : true;
                 //Get the query vector embedding
                 vector = p.get("vector");
 
@@ -71,18 +62,13 @@ public class VectorDistanceEngine implements ScriptEngine {
                         inputVector[i] = tmp.get(i);
                     }
                 } else {
-
-                        throw new IllegalArgumentException("Must have 'vector' or 'encoded_vector' as a parameter");
-
+                    throw new IllegalArgumentException("Must have 'vector' as a parameter");
                 }
 
-                //If cosine calculate the query vec norm
-                if (cosine) {
-                    queryVectorNorm = 0d;
-                    // compute query inputVector norm once
-                    for (double v : inputVector) {
-                        queryVectorNorm += Math.pow(v,2.0);
-                    }
+                queryVectorNorm = 0d;
+                // compute query inputVector norm once
+                for (double v : inputVector) {
+                    queryVectorNorm += Math.pow(v,2.0);
                 }
             }
 
@@ -95,7 +81,6 @@ public class VectorDistanceEngine implements ScriptEngine {
 
                     @Override
                     public void setDocument(int docId) {
-                        // advance has undefined behavior calling with a docid <= its current docid
                         try {
                             accessor.advanceExact(docId);
                             is_value = true;
@@ -137,16 +122,10 @@ public class VectorDistanceEngine implements ScriptEngine {
                         //calculate dot product of document vector and query vector
                         for (int i = 0; i < inputVectorSize; i++) {
                             score += doubles[i] * inputVector[i];
-                            if (cosine) {
-                                docVectorNorm += Math.pow(doubles[i],2.0);
-                            }
+                            docVectorNorm += Math.pow(doubles[i],2.0);
                         }
-
-                        //If cosine, calcluate cosine score
-                        if (cosine) {
-                            if (docVectorNorm == 0 || queryVectorNorm == 0) return 0d;
-                            score = score / (Math.sqrt(docVectorNorm) * Math.sqrt(queryVectorNorm));
-                        }
+                        if (docVectorNorm == 0 || queryVectorNorm == 0) return 0d;
+                        score = score / (Math.sqrt(docVectorNorm) * Math.sqrt(queryVectorNorm));
                         return score;
                     }
                 };
@@ -158,8 +137,6 @@ public class VectorDistanceEngine implements ScriptEngine {
             }
         };
         return context.factoryClazz.cast(factory);
-
-
     }
 
     @Override
@@ -167,4 +144,3 @@ public class VectorDistanceEngine implements ScriptEngine {
         // optionally close resources
     }
 }
-
