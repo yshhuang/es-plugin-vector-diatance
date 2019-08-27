@@ -17,24 +17,34 @@ import java.util.Map;
  */
 public class VectorDistanceEngine implements ScriptEngine {
 
-    //
     //The normalized vector score from the query
-    //
     double queryVectorNorm;
 
+    /**
+     * The language name used in the script APIs to refer to this scripting backend.
+     */
     @Override
     public String getType() {
         return VectorDistanceConfig.ENGINE_TYPE;
     }
 
+    /**
+     * Compiles a script.
+     *
+     * @param name    the name of the script. {@code null} if it is anonymous (inline). For a stored script, its the identifier.
+     * @param code    actual source of the script
+     * @param context the context this script will be used for
+     * @param params  compile-time parameters (such as flags to the compiler)
+     * @return A compiled script of the FactoryType from {@link ScriptContext}
+     */
     @Override
-    public <T> T compile(String scriptName,String scriptSource,ScriptContext<T> context,Map<String, String> params) {
+    public <T> T compile(String name,String code,ScriptContext<T> context,Map<String, String> params) {
         if (context.equals(ScoreScript.CONTEXT) == false) {
             throw new IllegalArgumentException(getType() + " scripts cannot be used for context [" + context.name + "]");
         }
         // we use the script "source" as the script identifier
-        if (!VectorDistanceConfig.SCRIPT_SOURCE.equals(scriptSource)) {
-            throw new IllegalArgumentException("Unknown script name " + scriptSource);
+        if (!VectorDistanceConfig.SCRIPT_SOURCE.equals(code)) {
+            throw new IllegalArgumentException("Unknown script name " + code);
         }
 
         ScoreScript.Factory factory = (p,lookup) -> new ScoreScript.LeafFactory() {
