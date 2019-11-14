@@ -1,5 +1,7 @@
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.PostingsEnum;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.ByteArrayDataInput;
 import org.elasticsearch.script.ScoreScript;
 import org.elasticsearch.script.ScriptContext;
@@ -19,8 +21,7 @@ import java.util.Map;
  */
 public class VectorDistanceEngine implements ScriptEngine {
 
-    //The normalized vector score from the query
-    double queryVectorNorm;
+
 
     /**
      * The language name used in the script APIs to refer to this scripting backend.
@@ -74,11 +75,9 @@ public class VectorDistanceEngine implements ScriptEngine {
                 if (p.containsKey("field") == false) {
                     throw new IllegalArgumentException("Missing parameter [field]");
                 }
-                //Get the field value from the query
-                field = p.get("field").toString();
-                //Get the query value embedding
-                value = p.get("value").toString();
 
+                field = p.get("field").toString();
+                value = p.get("value").toString();
                 if (value == null) {
                     throw new IllegalArgumentException("Must have 'value' as a parameter");
                 }
@@ -107,30 +106,28 @@ public class VectorDistanceEngine implements ScriptEngine {
                         //If there is no field value return 0 rather than fail.
                         if (!is_value) return 0.0d;
 
-                        final int inputVectorSize = value.length();
+                        final int inputStringLength = value.length();
                         final byte[] bytes;
                         try {
                             bytes = accessor.binaryValue().bytes;
                         } catch (IOException e) {
                             return 0d;
                         }
-                        final ByteArrayDataInput docVector = new ByteArrayDataInput(bytes);
-
-                        docVector.readVInt();
-
-                        final int docVectorLength = docVector.readVInt(); // returns the number of bytes to read
-                        if (docVectorLength != inputVectorSize * 8) {
+                        final ByteArrayDataInput docString = new ByteArrayDataInput(bytes);
+                        docString.readVInt();
+                        final int docStringLength = docString.readVInt(); // returns the number of bytes to read
+                        if (docStringLength != inputStringLength * 8) {
                             return 0d;
                         }
-                        final int position = docVector.getPosition();
-                        final CharBuffer doubleBuffer =
-                                ByteBuffer.wrap(bytes,position,docVectorLength).asCharBuffer();
+                        final int position = docString.getPosition();
+                        final CharBuffer charBuffer =
+                                ByteBuffer.wrap(bytes,position,docStringLength).asCharBuffer();
 
-                        final char[] doubles = new char[inputVectorSize];
-                        doubleBuffer.get(doubles);
+                        final char[] chars = new char[inputStringLength];
+                        charBuffer.get(chars);
                         int counter = 0;
                         for (int k = 0; k < value.length(); k++) {
-                            if (value.charAt(k) != doubles[k]) {
+                            if (value.charAt(k) != chars[k]) {
                                 counter++;
                             }
                         }
@@ -148,6 +145,8 @@ public class VectorDistanceEngine implements ScriptEngine {
 
     public ScoreScript.LeafFactory cosine(Map<String, Object> p,SearchLookup lookup) {
         return new ScoreScript.LeafFactory() {
+            //The normalized vector score from the query
+            double queryVectorNorm;
             // The field to compare against
             final String field;
             //The query embedded value
@@ -159,9 +158,7 @@ public class VectorDistanceEngine implements ScriptEngine {
                 if (p.containsKey("field") == false) {
                     throw new IllegalArgumentException("Missing parameter [field]");
                 }
-                //Get the field value from the query
                 field = p.get("field").toString();
-                //Get the query value embedding
                 value = p.get("value");
 
                 //Determine if raw comma-delimited value or embedding was passed
