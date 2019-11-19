@@ -7,6 +7,8 @@ import org.elasticsearch.script.ScoreScript;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptEngine;
 import org.elasticsearch.search.lookup.SearchLookup;
+import script.HashHammingScript;
+import script.NormL2Script;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,7 +22,6 @@ import java.util.Map;
  * @date 2019-08-26 14:26
  */
 public class VectorDistanceEngine implements ScriptEngine {
-
 
 
     /**
@@ -57,6 +58,10 @@ public class VectorDistanceEngine implements ScriptEngine {
                     return cosine(p,lookup);
                 case "hamming":
                     return hamming(p,lookup);
+                case "hash-hamming":
+                    return new HashHammingScript().getScript(p,lookup);
+                case "norm-l2":
+                    return new NormL2Script().getScript(p,lookup);
                 default:
                     return null;
             }
