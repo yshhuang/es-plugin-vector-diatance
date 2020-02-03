@@ -96,8 +96,8 @@ public class NormL2Script implements ImageRevirevalScript {
                         for (int i = 0; i != inputVectorSize; i++) {
                             sum += Math.pow(inputVector[i] - doubles[i],2);
                         }
-
-                        return Math.sqrt(sum) * 10000;
+                        double s = 1 - Math.sqrt(sum);
+                        return s < 0 ? 0 : s;
                     }
                 };
             }
